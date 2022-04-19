@@ -10,6 +10,6 @@ The ability of our ancestors to switch food sources and to migrate to more favou
 
 
 ***************
-Frederik Saltre, Flinders University, frederik.saltre@flinders.edu.au January 2019
+Frederik Saltre, Flinders University, frederik.saltre@flinders.edu.au April 2022
 
 ![Screen Shot 2022-04-19 at 4 08 06 pm](https://user-images.githubusercontent.com/46954120/163941558-54b18035-5a74-44a2-984f-da05da11d048.png)
