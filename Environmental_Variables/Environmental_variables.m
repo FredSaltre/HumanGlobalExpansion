@@ -1,8 +1,18 @@
 program Environmental_variables
+% developed by Frederik Saltre 26/04/2024
+% The script is designed to compute the distance of each grid cell in a specified area to the nearest coast and the nearest river, as well as calculate a ruggedness index for each grid cell
+% It includes data preparation, intensive calculations for distance and ruggedness, and sophisticated visualizations with geographical mappings.
+
 
 %%=========================================================================
 %% RETURN A RASTER WITH THE DISTANCE OF EACH GRIDCELL TO THE NEAREST COAST
 %%=========================================================================
+%Part 1: Distance to the Nearest Coast
+%Data Loading: The script starts by loading a matrix from a text file that likely contains geographic or environmental data.
+%Preparation: It prepares two sets of data: one for non-missing data points and one specifically for coastal data points.
+%Distance Calculation: For each non-missing data point, it calculates the distance to the nearest coast using geographic coordinates. It uses a function to compute the distance between points on the Earth's surface and selects the minimum distance for each point.
+%Result Storage: The calculated distances are stored in a matrix that matches the original grid's dimensions and then saved to a text file.
+
 clear all, close all, clc,
 mat=load('maskedHumantimingraster_v2.txt');[r,c]=size(mat);tr=160;xg=-179.5:1:179.5;yg=-89.5:89.5;xg2=[xg(:,tr:end),xg(:,1:tr-1)];yg=flipud(yg');
 TF=isnan(mat);[row,col]=find(TF==0);nr=length(row);out=[row,col,nan(nr,3)];for i=1:nr;out(i,3:4)=[yg(row(i)),xg2(col(i))];end;
@@ -35,6 +45,11 @@ figure('Color','w'),worldmap({'world'});gridm('on');setm(gca,'ParallelLabel','of
 %%=========================================================================
 %% RETURN A RASTER WITH THE DISTANCE OF EACH GRIDCELL TO THE NEAREST RIVER 
 %%=========================================================================
+%Part 2: Distance to the Nearest River
+%Data and Preparation: Similar to the coast distance calculation, it loads main river data and prepares matrices for calculation.
+%Distance Calculation: For each grid cell, it calculates the distance to the nearest river in a similar manner to the coast distance calculation.
+%Visualization and Saving: The results are visualized on a world map using MATLAB's mapping toolboxes, and the distance data is saved to a text file.
+
 clear all, close all, clc,
 rsys=load('worldmainrivers.txt');vrsys=unique(rsys(:,1));
 hum=load('maskedHumantimingraster_v2.txt');TF=isnan(hum);[row,col]=find(TF==0);chum=nan(length(row),4);
@@ -84,6 +99,12 @@ figure('Color','w'),worldmap({'world'});gridm('on');setm(gca,'ParallelLabel','of
 %%=========================================================================
 %% RETURN A RASTER WITH AN INDEX OF RUGGEDNESS FOR EACH GRID CELL WORLDWIDE 
 %%=========================================================================
+%Part 3: Ruggedness Index Calculation
+%Data Loading: This section loads elevation data from a NetCDF file, which contains latitude, longitude, and elevation data.
+%Preparation: Adjusts the longitude data to match the grid orientation used in the previous calculations.
+%Ruggedness Calculation: For each grid cell, it calculates the ruggedness based on elevation differences with its immediate neighbors. This involves computing the square of the difference in elevation between a cell and each of its eight neighbors, summing these squares, and then taking the square root of the total.
+%Final Adjustments and Saving: Excludes areas covered by ice sheets or water bodies from the ruggedness calculation and saves the ruggedness data to a text file.
+
 clear all, close all, clc,
 mat.alt=ncread('elev.1-deg.nc','data');mat.lat=ncread('elev.1-deg.nc','lat');mat.lon=ncread('elev.1-deg.nc','lon');
 mat.time=load('maskedHumantimingraster_v2.txt');tr=160;xg=-179.5:1:179.5;yg=-89.5:89.5;xg2=[xg(:,tr:end),xg(:,1:tr-1)];yg=flipud(yg');%fichier humain timing
