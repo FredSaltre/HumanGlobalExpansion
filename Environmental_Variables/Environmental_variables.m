@@ -13,19 +13,27 @@ program Environmental_variables
 %Distance Calculation: For each non-missing data point, it calculates the distance to the nearest coast using geographic coordinates. It uses a function to compute the distance between points on the Earth's surface and selects the minimum distance for each point.
 %Result Storage: The calculated distances are stored in a matrix that matches the original grid's dimensions and then saved to a text file.
 
-clear all, close all, clc,
-mat=load('maskedHumantimingraster_v2.txt');[r,c]=size(mat);tr=160;xg=-179.5:1:179.5;yg=-89.5:89.5;xg2=[xg(:,tr:end),xg(:,1:tr-1)];yg=flipud(yg');
-TF=isnan(mat);[row,col]=find(TF==0);nr=length(row);out=[row,col,nan(nr,3)];for i=1:nr;out(i,3:4)=[yg(row(i)),xg2(col(i))];end;
-[row2,col2]=find(TF==1);nr2=length(row2);coastal=[row2,col2,nan(nr2,2)];for i=1:nr2;coastal(i,3:4)=[yg(row2(i)),xg2(col2(i))];end;
+clear all, close all, clc, %% Clear workspace, close all figures, and clear command window
+%% Load geographic raster data and prepare for processing
+mat=load('maskedHumantimingraster_v2.txt');% Load raster data for human timing
+[r,c]=size(mat);tr=160;% Get the dimensions of the matrix + Threshold value (possibly for longitude adjustment)
+xg=-179.5:1:179.5;yg=-89.5:89.5;xg2=[xg(:,tr:end),xg(:,1:tr-1)];yg=flipud(yg');% Define longitude and latitude range + Adjust longitudes by threshold + Flip latitude array to match geographic conventions
+%% Prepare matrix for non-missing and coastal data
+TF=isnan(mat);[row,col]=find(TF==0);nr=length(row);out=[row,col,nan(nr,3)];for i=1:nr;out(i,3:4)=[yg(row(i)),xg2(col(i))];end;% Identify NaNs in the matrix + Find indices of non-NaN entries + Number of non-NaN entries + Initialize output matrix with NaNs for additional data + Populate latitudes and longitudes
+%% Prepare coastal data matrix
+[row2,col2]=find(TF==1);nr2=length(row2);coastal=[row2,col2,nan(nr2,2)];for i=1:nr2;coastal(i,3:4)=[yg(row2(i)),xg2(col2(i))];end; %similar process as coastal data
+%% Calculate distance from each grid cell to the nearest coast
 h = waitbar(0,'Please wait...');
 for i=1:nr;waitbar(i/nr)
-    [vc,~]=distance(out(i,3),out(i,4),coastal(:,3),coastal(:,4));
-    id=find(vc==min(vc));out(i,5)=deg2km(vc(id(1)));
+    [vc,~]=distance(out(i,3),out(i,4),coastal(:,3),coastal(:,4));% Calculate distances to coast
+    id=find(vc==min(vc));out(i,5)=deg2km(vc(id(1)));% Find the closest coast + Convert closest distance to kilometers
     clear vc id;
 end;close(h);
-res=nan(r,c);for i=1:nr;res(out(i,1),out(i,2))=out(i,5);end;
+%% Save the distance data to a raster matrix and output to a text file
+res=nan(r,c);for i=1:nr;res(out(i,1),out(i,2))=out(i,5);end;% Initialize the result matrix with NaNs + Populate the result matrix with calculated distances
 save -ascii NewDistance2coast.txt res;
 
+%% Visualization setup
 icesheet1=load('icesheet16ka.txt');icesheet2=load('IceSheetAntarticaGreenlandEurope.txt');
 coast = load('coast');seaclr=brewermap(15,'RdBu');seaclr1=seaclr(9,:);clr3=brewermap(13,'YlOrBr');%Cice=brewermap(13,'Greys');
 figure('Color','w'),worldmap({'world'});gridm('on');setm(gca,'ParallelLabel','off','MeridianLabel','off');
@@ -105,29 +113,71 @@ figure('Color','w'),worldmap({'world'});gridm('on');setm(gca,'ParallelLabel','of
 %Ruggedness Calculation: For each grid cell, it calculates the ruggedness based on elevation differences with its immediate neighbors. This involves computing the square of the difference in elevation between a cell and each of its eight neighbors, summing these squares, and then taking the square root of the total.
 %Final Adjustments and Saving: Excludes areas covered by ice sheets or water bodies from the ruggedness calculation and saves the ruggedness data to a text file.
 
+% This script calculates a ruggedness index based on elevation differences
+% between each grid cell and its neighbors.
+
+% Clear workspace, close all figures, and clear command window
 clear all, close all, clc,
-mat.alt=ncread('elev.1-deg.nc','data');mat.lat=ncread('elev.1-deg.nc','lat');mat.lon=ncread('elev.1-deg.nc','lon');
-mat.time=load('maskedHumantimingraster_v2.txt');tr=160;xg=-179.5:1:179.5;yg=-89.5:89.5;xg2=[xg(:,tr:end),xg(:,1:tr-1)];yg=flipud(yg');%fichier humain timing
-mat.alt=mat.alt';mat.lon=[0.5:179.5,-179.5:1:-0.5];%fichier altitude -> a mettre sur la meme grille
-id=find(mat.lon==xg2(1));mat.alt2=[mat.alt(:,id:end),mat.alt(:,1:id-1)];%on matche les deux grgille aux meme longitudes
-nr=180;nc=360;cpt=0;mat.rug=nan(nr,nc);h = waitbar(0,'Please wait...');
-for i=2:nr-1;
-    for j=2:nc-1;ngh=nan(9,1);cpt=cpt+1;waitbar(cpt/(nr*nc))
-        ngh(1,1)=(mat.alt2(i-1,j-1)-mat.alt2(i,j)).^2;
-        ngh(2,1)=(mat.alt2(i-1,j)-mat.alt2(i,j)).^2;
-        ngh(3,1)=(mat.alt2(i-1,j+1)-mat.alt2(i,j)).^2;
-        ngh(4,1)=(mat.alt2(i,j-1)-mat.alt2(i,j)).^2;
-        ngh(5,1)=(mat.alt2(i,j)-mat.alt2(i,j)).^2;
-        ngh(6,1)=(mat.alt2(i,j+1)-mat.alt2(i,j)).^2;
-        ngh(7,1)=(mat.alt2(i+1,j-1)-mat.alt2(i,j)).^2;
-        ngh(8,1)=(mat.alt2(i+1,j)-mat.alt2(i,j)).^2;
-        ngh(9,1)=(mat.alt2(i+1,j+1)-mat.alt2(i,j)).^2;
-        mat.rug(i,j)=sqrt(sum(ngh));clear ngh;        
+
+% Load elevation data from a NetCDF file
+mat.alt = ncread('elev.1-deg.nc', 'data');  % Elevation data
+mat.lat = ncread('elev.1-deg.nc', 'lat');   % Latitude data
+mat.lon = ncread('elev.1-deg.nc', 'lon');   % Longitude data
+
+% Load timing data which may be used to mask certain areas
+mat.time = load('maskedHumantimingraster_v2.txt');
+
+% Define the grid adjustment threshold and grid definitions
+tr = 160;  % Threshold for adjusting grid alignment
+xg = -179.5:1:179.5;  % Longitude grid definition from -179.5 to 179.5
+yg = -89.5:89.5;       % Latitude grid definition from -89.5 to 89.5
+xg2 = [xg(:, tr:end), xg(:, 1:tr-1)];  % Adjusted longitude grid
+yg = flipud(yg');  % Flip latitude grid to match geographic orientation
+
+% Transpose and adjust longitude data to match grid orientation
+mat.alt = mat.alt';
+mat.lon = [0.5:179.5, -179.5:1:-0.5];  % Adjust longitude data
+id = find(mat.lon == xg2(1));
+mat.alt2 = [mat.alt(:, id:end), mat.alt(:, 1:id-1)];  % Adjust altitude data grid
+
+% Initialize ruggedness matrix and variables for processing
+nr = 180;  % Number of latitude rows
+nc = 360;  % Number of longitude columns
+cpt = 0;   % Counter for progress tracking
+mat.rug = nan(nr, nc);  % Initialize ruggedness matrix with NaNs
+h = waitbar(0, 'Please wait...');  % Initialize wait bar for user feedback
+
+% Calculate ruggedness for each grid cell
+for i = 2:nr-1
+    for j = 2:nc-1
+        ngh = nan(9,1);  % Initialize neighbor differences matrix
+        cpt = cpt + 1;   % Increment progress counter
+        waitbar(cpt / (nr * nc), h);  % Update wait bar
+        
+        % Calculate squared differences of elevation with eight neighbors
+        ngh(1,1) = (mat.alt2(i-1, j-1) - mat.alt2(i, j))^2;
+        ngh(2,1) = (mat.alt2(i-1, j) - mat.alt2(i, j))^2;
+        ngh(3,1) = (mat.alt2(i-1, j+1) - mat.alt2(i, j))^2;
+        ngh(4,1) = (mat.alt2(i, j-1) - mat.alt2(i, j))^2;
+        ngh(5,1) = (mat.alt2(i, j) - mat.alt2(i, j))^2;  % Self difference (always 0)
+        ngh(6,1) = (mat.alt2(i, j+1) - mat.alt2(i, j))^2;
+        ngh(7,1) = (mat.alt2(i+1, j-1) - mat.alt2(i, j))^2;
+        ngh(8,1) = (mat.alt2(i+1, j) - mat.alt2(i, j))^2;
+        ngh(9,1) = (mat.alt2(i+1, j+1) - mat.alt2(i, j))^2;
+        
+        % Calculate and store the ruggedness index as the square root of the sum of squared differences
+        mat.rug(i, j) = sqrt(sum(ngh));
+        clear ngh;
     end;
-end;close(h);
-TF=isnan(mat.time);[row,col]=find(TF==1);for i=1:length(row);mat.rug(row(i),col(i))=NaN;end;
+end;
+close(h);  % Close the wait bar
 
-
+% Mask ruggedness data for areas with NaNs in timing data
+TF = isnan(mat.time);  % Identify NaNs in timing data
+[row, col] = find(TF == 1);  % Find indices of NaN entries
+for i = 1:length(row)
+    mat.rug(row(i), col(i)) = NaN;  % Set ruggedness to NaN where timing data is missing
+end;
 out=mat.rug;save -ascii NewRuggedness.txt out;
 
 
